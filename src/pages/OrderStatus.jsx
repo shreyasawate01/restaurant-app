@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { db } from '../firebase';
 import { doc, onSnapshot } from 'firebase/firestore';
@@ -12,13 +12,58 @@ const STEP_INFO = {
   served:    { emoji: '🍽️', label: 'Enjoy your meal!', desc: 'Your food has been served. Bon appétit!', color: 'text-purple-500' },
 };
 
+const NOTIFICATION_MESSAGES = {
+  preparing: { title: '👨‍🍳 Chef is Cooking!', body: 'Your order is being prepared right now!' },
+  ready:     { title: '🔔 Food is Ready!',    body: 'Your food is ready — waiter is bringing it!' },
+  served:    { title: '🍽️ Enjoy your meal!',  body: 'Your food has been served. Bon appétit!' },
+};
+
 export default function OrderStatus() {
   const { orderId } = useParams();
   const [order, setOrder] = useState(null);
+  const [notifGranted, setNotifGranted] = useState(false);
+  const prevStatus = useRef(null);
+
+  // Request notification permission
+  const requestNotifications = async () => {
+    if (!('Notification' in window)) return alert("Your browser doesn't support notifications.");
+    const permission = await Notification.requestPermission();
+    if (permission === 'granted') {
+      setNotifGranted(true);
+      new Notification('🍽️ TableServe', {
+        body: "You'll be notified when your order status changes!",
+        icon: '/favicon.svg'
+      });
+    }
+  };
+
+  // Send notification when status changes
+  const sendNotification = (status) => {
+    if (Notification.permission !== 'granted') return;
+    const msg = NOTIFICATION_MESSAGES[status];
+    if (!msg) return;
+    new Notification(msg.title, {
+      body: msg.body,
+      icon: '/favicon.svg',
+      badge: '/favicon.svg',
+      vibrate: [200, 100, 200],
+    });
+  };
 
   useEffect(() => {
+    // Check if already granted
+    if (Notification.permission === 'granted') setNotifGranted(true);
+
     const unsubscribe = onSnapshot(doc(db, 'orders', orderId), (d) => {
-      if (d.exists()) setOrder(d.data());
+      if (d.exists()) {
+        const data = d.data();
+        // Send notification if status changed
+        if (prevStatus.current && prevStatus.current !== data.status) {
+          sendNotification(data.status);
+        }
+        prevStatus.current = data.status;
+        setOrder(data);
+      }
     });
     return () => unsubscribe();
   }, [orderId]);
@@ -51,6 +96,29 @@ export default function OrderStatus() {
       </div>
 
       <div className="max-w-md mx-auto p-5 space-y-4">
+
+        {/* Notification Banner */}
+        {!notifGranted && (
+          <button onClick={requestNotifications}
+            className="w-full bg-[#1a1a1a] border border-orange-500/40 rounded-2xl p-4 flex items-center gap-3 hover:border-orange-500 transition-colors active:scale-95">
+            <span className="text-2xl">🔔</span>
+            <div className="text-left">
+              <p className="font-black text-white text-sm">Enable Notifications</p>
+              <p className="text-gray-500 text-xs mt-0.5">Get notified when your food is ready!</p>
+            </div>
+            <span className="ml-auto text-orange-400 font-bold text-sm shrink-0">Turn On →</span>
+          </button>
+        )}
+
+        {notifGranted && (
+          <div className="w-full bg-green-900/20 border border-green-800/40 rounded-2xl p-4 flex items-center gap-3">
+            <span className="text-2xl">✅</span>
+            <div>
+              <p className="font-black text-green-400 text-sm">Notifications On</p>
+              <p className="text-gray-500 text-xs mt-0.5">We'll notify you when your order is ready!</p>
+            </div>
+          </div>
+        )}
 
         {/* Big Status Card */}
         <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-2xl p-6 text-center">
@@ -85,11 +153,17 @@ export default function OrderStatus() {
           <div className="space-y-2">
             {order.items.map((item, i) => (
               <div key={i} className="flex justify-between items-start py-2 border-b border-[#2a2a2a] last:border-0">
-                <div>
-                  <p className="text-sm font-bold text-white">{item.quantity}× {item.name}</p>
-                  {item.preferences && (
-                    <p className="text-xs text-orange-400 mt-0.5">Note: {item.preferences}</p>
+                <div className="flex items-center gap-3">
+                  {item.imageUrl && (
+                    <img src={item.imageUrl} alt={item.name}
+                      className="w-10 h-10 rounded-lg object-cover shrink-0" />
                   )}
+                  <div>
+                    <p className="text-sm font-bold text-white">{item.quantity}× {item.name}</p>
+                    {item.preferences && (
+                      <p className="text-xs text-orange-400 mt-0.5">Note: {item.preferences}</p>
+                    )}
+                  </div>
                 </div>
                 <span className="text-sm font-bold text-gray-400">₹{item.price * item.quantity}</span>
               </div>
@@ -101,7 +175,7 @@ export default function OrderStatus() {
           </div>
         </div>
 
-        {/* Add More Items Button */}
+        {/* Add More Items */}
         {order.status !== 'served' && (
           <a href={`/menu/${order.restaurantId}/${order.tableNumber}`}
             className="block w-full bg-[#1a1a1a] border border-[#2a2a2a] hover:border-orange-500/50 text-white py-4 rounded-2xl font-black text-base text-center transition-all active:scale-95">
