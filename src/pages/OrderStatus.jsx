@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { db } from '../firebase';
 import { doc, onSnapshot } from 'firebase/firestore';
-import OneSignal from 'react-onesignal';
 
 const STEPS = ['pending', 'preparing', 'ready', 'served'];
 
@@ -13,6 +12,35 @@ const STEP_INFO = {
   served:    { emoji: '🍽️', label: 'Enjoy your meal!', desc: 'Your food has been served. Bon appétit!', color: 'text-purple-500' },
 };
 
+const sendPushNotification = async (status, orderId) => {
+  const messages = {
+    preparing: { title: '👨‍🍳 Chef is Cooking!', body: 'Your order is being prepared right now!' },
+    ready:     { title: '🔔 Food is Ready!',    body: 'Your food is ready — waiter is bringing it!' },
+    served:    { title: '🍽️ Enjoy your meal!',  body: 'Your food has been served. Bon appétit!' },
+  };
+  const msg = messages[status];
+  if (!msg) return;
+
+  try {
+    await fetch('https://onesignal.com/api/v1/notifications', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Basic pnncql4tyunjern577qhd352h'
+      },
+      body: JSON.stringify({
+        app_id: 'f55b357d-df31-4ba6-8042-23ad48230434',
+        filters: [{ field: 'tag', key: 'orderId', relation: '=', value: orderId }],
+        headings: { en: msg.title },
+        contents: { en: msg.body },
+        url: window.location.href,
+      })
+    });
+  } catch (e) {
+    console.log('Push error:', e);
+  }
+};
+
 export default function OrderStatus() {
   const { orderId } = useParams();
   const [order, setOrder] = useState(null);
@@ -20,49 +48,30 @@ export default function OrderStatus() {
   const prevStatus = useRef(null);
 
   const requestNotifications = async () => {
-    try {
-      await OneSignal.Notifications.requestPermission();
-      const granted = OneSignal.Notifications.permission;
-      setNotifGranted(granted);
-    } catch (e) {
-      console.log('Notification error:', e);
+    if (window.OneSignal) {
+      window.OneSignalDeferred.push(async function(OneSignal) {
+        await OneSignal.Notifications.requestPermission();
+        // Tag this user with their order ID
+        await OneSignal.User.addTag('orderId', orderId);
+        setNotifGranted(true);
+      });
     }
   };
 
   useEffect(() => {
-    // Check current permission
-    const checkPermission = async () => {
-      const granted = OneSignal.Notifications.permission;
-      setNotifGranted(granted);
-    };
-    checkPermission();
+    // Check permission on load
+    if (window.OneSignalDeferred) {
+      window.OneSignalDeferred.push(function(OneSignal) {
+        const granted = OneSignal.Notifications.permission;
+        setNotifGranted(granted);
+      });
+    }
 
-    const unsubscribe = onSnapshot(doc(db, 'orders', orderId), async (d) => {
+    const unsubscribe = onSnapshot(doc(db, 'orders', orderId), (d) => {
       if (d.exists()) {
         const data = d.data();
         if (prevStatus.current && prevStatus.current !== data.status) {
-          // Send notification via OneSignal API
-          const messages = {
-            preparing: { title: '👨‍🍳 Chef is Cooking!', body: 'Your order is being prepared!' },
-            ready:     { title: '🔔 Food is Ready!',    body: 'Your food is ready — waiter is coming!' },
-            served:    { title: '🍽️ Enjoy your meal!',  body: 'Your food has been served!' },
-          };
-          const msg = messages[data.status];
-          if (msg && OneSignal.Notifications.permission) {
-            await fetch('https://onesignal.com/api/v1/notifications', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Basic ${import.meta.env.VITE_ONESIGNAL_REST_KEY}`
-              },
-              body: JSON.stringify({
-                app_id: import.meta.env.VITE_ONESIGNAL_APP_ID,
-                include_player_ids: [await OneSignal.User.PushSubscription.id],
-                headings: { en: msg.title },
-                contents: { en: msg.body },
-              })
-            });
-          }
+          sendPushNotification(data.status, orderId);
         }
         prevStatus.current = data.status;
         setOrder(data);
@@ -87,7 +96,6 @@ export default function OrderStatus() {
   return (
     <div className="min-h-screen bg-[#0f0f0f] text-white font-sans">
 
-      {/* Header */}
       <div className="bg-[#1a1a1a] border-b border-[#2a2a2a] px-5 py-4">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-orange-500 rounded-xl flex items-center justify-center text-xl shadow-lg shadow-orange-900/50">🍽️</div>
@@ -101,7 +109,7 @@ export default function OrderStatus() {
       <div className="max-w-md mx-auto p-5 space-y-4">
 
         {/* Notification Banner */}
-        {!notifGranted && (
+        {!notifGranted ? (
           <button onClick={requestNotifications}
             className="w-full bg-[#1a1a1a] border border-orange-500/40 rounded-2xl p-4 flex items-center gap-3 hover:border-orange-500 transition-colors active:scale-95">
             <span className="text-2xl">🔔</span>
@@ -111,26 +119,24 @@ export default function OrderStatus() {
             </div>
             <span className="ml-auto text-orange-400 font-bold text-sm shrink-0">Turn On →</span>
           </button>
-        )}
-
-        {notifGranted && (
+        ) : (
           <div className="w-full bg-green-900/20 border border-green-800/40 rounded-2xl p-4 flex items-center gap-3">
             <span className="text-2xl">✅</span>
             <div>
               <p className="font-black text-green-400 text-sm">Notifications On</p>
-              <p className="text-gray-500 text-xs mt-0.5">We'll notify you when your order is ready!</p>
+              <p className="text-gray-500 text-xs mt-0.5">You'll be notified when your order is ready!</p>
             </div>
           </div>
         )}
 
-        {/* Big Status Card */}
+        {/* Status Card */}
         <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-2xl p-6 text-center">
           <div className="text-5xl mb-3">{info.emoji}</div>
           <h2 className={`text-2xl font-black ${info.color}`}>{info.label}</h2>
           <p className="text-gray-500 text-sm mt-2">{info.desc}</p>
         </div>
 
-        {/* Progress Steps */}
+        {/* Progress */}
         <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-2xl p-4">
           <h3 className="font-bold text-gray-500 text-xs mb-4 uppercase tracking-widest">Progress</h3>
           {STEPS.map((step, i) => (
@@ -178,7 +184,7 @@ export default function OrderStatus() {
           </div>
         </div>
 
-        {/* Add More Items */}
+        {/* Add More */}
         {order.status !== 'served' && (
           <a href={`/menu/${order.restaurantId}/${order.tableNumber}`}
             className="block w-full bg-[#1a1a1a] border border-[#2a2a2a] hover:border-orange-500/50 text-white py-4 rounded-2xl font-black text-base text-center transition-all active:scale-95">

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { db, auth, signInAnonymously } from '../firebase';
 import { collection, getDocs, addDoc } from 'firebase/firestore';
+import LoadingScreen from '../components/LoadingScreen';
 
 export default function CustomerMenu() {
   const { restaurantId, tableNumber } = useParams();
@@ -10,6 +11,7 @@ export default function CustomerMenu() {
   const [cart, setCart] = useState([]);
   const [customerName, setCustomerName] = useState('');
   const [loading, setLoading] = useState(false);
+  const [pageLoading, setPageLoading] = useState(true);
   const [showCart, setShowCart] = useState(false);
   const [activeCategory, setActiveCategory] = useState(null);
   const [preferences, setPreferences] = useState({});
@@ -21,11 +23,13 @@ export default function CustomerMenu() {
   }, []);
 
   const fetchMenu = async () => {
+    setPageLoading(true);
     const snapshot = await getDocs(collection(db, `restaurants/${restaurantId}/menu`));
     const items = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
     setMenu(items);
     const firstCat = [...new Set(items.map(i => i.category))][0];
     setActiveCategory(firstCat);
+    setTimeout(() => setPageLoading(false), 1500);
   };
 
   const categories = [...new Set(menu.map(i => i.category))];
@@ -75,10 +79,12 @@ export default function CustomerMenu() {
     setLoading(false);
   };
 
+  if (pageLoading) return <LoadingScreen message="Loading menu..." />;
+
   return (
     <div className="min-h-screen bg-[#0f0f0f] text-white font-sans pb-40">
 
-      {/* Hero Header */}
+      {/* Header */}
       <div className="relative bg-gradient-to-b from-[#1a1a1a] to-[#0f0f0f] px-5 pt-10 pb-6">
         <div className="flex items-center justify-between mb-6">
           <div>
@@ -131,34 +137,20 @@ export default function CustomerMenu() {
           return (
             <div key={item.id}
               className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-2xl p-4 transition-all hover:border-orange-500/30">
-
-              {/* Main Row — photo + info + button */}
               <div className="flex items-center gap-3">
-
-                {/* Side Photo */}
                 {item.imageUrl ? (
                   <div className="w-20 h-20 rounded-xl overflow-hidden shrink-0 border border-[#2a2a2a]">
-                    <img src={item.imageUrl} alt={item.name}
-                      className="w-full h-full object-cover" />
+                    <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
                   </div>
                 ) : (
                   <div className="w-20 h-20 rounded-xl shrink-0 bg-[#0f0f0f] border border-[#2a2a2a] flex items-center justify-center text-2xl">
                     🍽️
                   </div>
                 )}
-
-                {/* Info */}
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <h3 className="font-bold text-white text-base leading-tight">{item.name}</h3>
-                    {item.isVeg && (
-                      <span className="text-xs bg-green-900/40 text-green-400 border border-green-800 px-1.5 py-0.5 rounded-md font-bold shrink-0">VEG</span>
-                    )}
-                  </div>
-                  <p className="text-orange-400 font-black text-lg">₹{item.price}</p>
+                  <h3 className="font-bold text-white text-base leading-tight">{item.name}</h3>
+                  <p className="text-orange-400 font-black text-lg mt-1">₹{item.price}</p>
                 </div>
-
-                {/* Quantity Control */}
                 {qty === 0 ? (
                   <button onClick={() => addToCart(item)}
                     className="shrink-0 bg-orange-500 hover:bg-orange-400 text-white font-black px-4 py-2.5 rounded-xl text-sm transition-all shadow-md shadow-orange-900/50 active:scale-95">
@@ -178,8 +170,6 @@ export default function CustomerMenu() {
                   </div>
                 )}
               </div>
-
-              {/* Special Request */}
               <button onClick={() => setShowPrefFor(showPrefFor === item.id ? null : item.id)}
                 className="text-xs text-gray-600 hover:text-orange-400 mt-3 transition-colors flex items-center gap-1">
                 <span>{showPrefFor === item.id ? '▲' : '✏️'}</span>
@@ -208,14 +198,12 @@ export default function CustomerMenu() {
           <div className="relative bg-[#1a1a1a] rounded-t-3xl border-t border-[#2a2a2a] p-5 max-h-[80vh] overflow-y-auto">
             <div className="w-10 h-1 bg-gray-600 rounded-full mx-auto mb-5" />
             <h2 className="font-black text-xl text-white mb-4">Your Order</h2>
-
             <div className="space-y-3 mb-5">
               {cart.map((item, i) => (
                 <div key={i} className="flex justify-between items-center bg-[#0f0f0f] rounded-xl px-4 py-3">
                   <div className="flex items-center gap-3">
                     {item.imageUrl && (
-                      <img src={item.imageUrl} alt={item.name}
-                        className="w-10 h-10 rounded-lg object-cover shrink-0" />
+                      <img src={item.imageUrl} alt={item.name} className="w-10 h-10 rounded-lg object-cover shrink-0" />
                     )}
                     <div>
                       <p className="font-bold text-white text-sm">{item.quantity}× {item.name}</p>
@@ -230,14 +218,12 @@ export default function CustomerMenu() {
                 </div>
               ))}
             </div>
-
             <div className="border-t border-[#2a2a2a] pt-4 mb-4">
               <div className="flex justify-between items-center">
                 <span className="text-gray-400 font-semibold">Total</span>
                 <span className="text-orange-400 font-black text-2xl">₹{totalPrice}</span>
               </div>
             </div>
-
             <button onClick={placeOrder} disabled={loading}
               className="w-full bg-orange-500 hover:bg-orange-400 disabled:opacity-50 text-white py-4 rounded-2xl font-black text-lg transition-all shadow-xl shadow-orange-900/50 active:scale-95">
               {loading ? '⏳ Placing Order...' : `Place Order — ₹${totalPrice}`}

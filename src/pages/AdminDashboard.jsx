@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { db } from '../firebase';
 import { collection, addDoc, getDocs, deleteDoc, doc } from 'firebase/firestore';
 import QRCodeGenerator from '../components/QRCodeGenerator';
+import LoadingScreen from '../components/LoadingScreen';
 
 const RESTAURANT_ID = "my-restaurant";
 const CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
@@ -17,6 +18,7 @@ export default function AdminDashboard() {
   const [tableCount, setTableCount] = useState(5);
   const [activeTab, setActiveTab] = useState('menu');
   const [loading, setLoading] = useState(false);
+  const [pageLoading, setPageLoading] = useState(true);
   const [uploadProgress, setUploadProgress] = useState('');
 
   useEffect(() => { fetchMenu(); }, []);
@@ -24,6 +26,7 @@ export default function AdminDashboard() {
   const fetchMenu = async () => {
     const snapshot = await getDocs(collection(db, `restaurants/${RESTAURANT_ID}/menu`));
     setMenuItems(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+    setTimeout(() => setPageLoading(false), 1500);
   };
 
   const handleImageSelect = (e) => {
@@ -76,6 +79,8 @@ export default function AdminDashboard() {
   };
 
   const categories = [...new Set(menuItems.map(i => i.category).filter(Boolean))];
+
+  if (pageLoading) return <LoadingScreen message="Loading dashboard..." />;
 
   return (
     <div className="min-h-screen bg-[#0f0f0f] text-white font-sans">
