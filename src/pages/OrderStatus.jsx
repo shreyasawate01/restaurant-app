@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { db } from '../firebase';
 import { doc, onSnapshot } from 'firebase/firestore';
+import OneSignal from 'react-onesignal';
 
 const STEPS = ['pending', 'preparing', 'ready', 'served'];
 
@@ -12,54 +13,56 @@ const STEP_INFO = {
   served:    { emoji: '🍽️', label: 'Enjoy your meal!', desc: 'Your food has been served. Bon appétit!', color: 'text-purple-500' },
 };
 
-const NOTIFICATION_MESSAGES = {
-  preparing: { title: '👨‍🍳 Chef is Cooking!', body: 'Your order is being prepared right now!' },
-  ready:     { title: '🔔 Food is Ready!',    body: 'Your food is ready — waiter is bringing it!' },
-  served:    { title: '🍽️ Enjoy your meal!',  body: 'Your food has been served. Bon appétit!' },
-};
-
 export default function OrderStatus() {
   const { orderId } = useParams();
   const [order, setOrder] = useState(null);
   const [notifGranted, setNotifGranted] = useState(false);
   const prevStatus = useRef(null);
 
-  // Request notification permission
   const requestNotifications = async () => {
-    if (!('Notification' in window)) return alert("Your browser doesn't support notifications.");
-    const permission = await Notification.requestPermission();
-    if (permission === 'granted') {
-      setNotifGranted(true);
-      new Notification('🍽️ TableServe', {
-        body: "You'll be notified when your order status changes!",
-        icon: '/favicon.svg'
-      });
+    try {
+      await OneSignal.Notifications.requestPermission();
+      const granted = OneSignal.Notifications.permission;
+      setNotifGranted(granted);
+    } catch (e) {
+      console.log('Notification error:', e);
     }
   };
 
-  // Send notification when status changes
-  const sendNotification = (status) => {
-    if (Notification.permission !== 'granted') return;
-    const msg = NOTIFICATION_MESSAGES[status];
-    if (!msg) return;
-    new Notification(msg.title, {
-      body: msg.body,
-      icon: '/favicon.svg',
-      badge: '/favicon.svg',
-      vibrate: [200, 100, 200],
-    });
-  };
-
   useEffect(() => {
-    // Check if already granted
-    if (Notification.permission === 'granted') setNotifGranted(true);
+    // Check current permission
+    const checkPermission = async () => {
+      const granted = OneSignal.Notifications.permission;
+      setNotifGranted(granted);
+    };
+    checkPermission();
 
-    const unsubscribe = onSnapshot(doc(db, 'orders', orderId), (d) => {
+    const unsubscribe = onSnapshot(doc(db, 'orders', orderId), async (d) => {
       if (d.exists()) {
         const data = d.data();
-        // Send notification if status changed
         if (prevStatus.current && prevStatus.current !== data.status) {
-          sendNotification(data.status);
+          // Send notification via OneSignal API
+          const messages = {
+            preparing: { title: '👨‍🍳 Chef is Cooking!', body: 'Your order is being prepared!' },
+            ready:     { title: '🔔 Food is Ready!',    body: 'Your food is ready — waiter is coming!' },
+            served:    { title: '🍽️ Enjoy your meal!',  body: 'Your food has been served!' },
+          };
+          const msg = messages[data.status];
+          if (msg && OneSignal.Notifications.permission) {
+            await fetch('https://onesignal.com/api/v1/notifications', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Basic ${import.meta.env.VITE_ONESIGNAL_REST_KEY}`
+              },
+              body: JSON.stringify({
+                app_id: import.meta.env.VITE_ONESIGNAL_APP_ID,
+                include_player_ids: [await OneSignal.User.PushSubscription.id],
+                headings: { en: msg.title },
+                contents: { en: msg.body },
+              })
+            });
+          }
         }
         prevStatus.current = data.status;
         setOrder(data);
