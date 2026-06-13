@@ -87,11 +87,21 @@ export default function CustomerMenu() {
       {/* Header */}
       <div className="relative bg-gradient-to-b from-[#1a1a1a] to-[#0f0f0f] px-5 pt-10 pb-6">
         <div className="flex items-center justify-between mb-6">
-          <div>
-            <p className="text-orange-400 text-xs font-bold uppercase tracking-widest mb-1">Table {tableNumber}</p>
-            <h1 className="text-3xl font-black text-white leading-tight">Our Menu</h1>
-            <p className="text-gray-500 text-sm mt-1">Fresh, made to order</p>
+          <div className="flex items-start gap-3">
+
+            {/* Back Button */}
+            <button onClick={() => window.history.back()}
+              className="mt-1 w-9 h-9 bg-[#2a2a2a] hover:bg-[#333] rounded-xl flex items-center justify-center transition-colors shrink-0">
+              <span className="text-white text-lg">←</span>
+            </button>
+
+            <div>
+              <p className="text-orange-400 text-xs font-bold uppercase tracking-widest mb-1">Table {tableNumber}</p>
+              <h1 className="text-3xl font-black text-white leading-tight">Our Menu</h1>
+              <p className="text-gray-500 text-sm mt-1">Fresh, made to order</p>
+            </div>
           </div>
+
           {cart.length > 0 && (
             <button onClick={() => setShowCart(true)}
               className="relative bg-orange-500 w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg shadow-orange-900">

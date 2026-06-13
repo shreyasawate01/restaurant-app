@@ -12,33 +12,10 @@ const STEP_INFO = {
   served:    { emoji: '🍽️', label: 'Enjoy your meal!', desc: 'Your food has been served. Bon appétit!', color: 'text-purple-500' },
 };
 
-const sendPushNotification = async (status, orderId) => {
-  const messages = {
-    preparing: { title: '👨‍🍳 Chef is Cooking!', body: 'Your order is being prepared right now!' },
-    ready:     { title: '🔔 Food is Ready!',    body: 'Your food is ready — waiter is bringing it!' },
-    served:    { title: '🍽️ Enjoy your meal!',  body: 'Your food has been served. Bon appétit!' },
-  };
-  const msg = messages[status];
-  if (!msg) return;
-
-  try {
-    await fetch('https://onesignal.com/api/v1/notifications', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Basic pnncql4tyunjern577qhd352h'
-      },
-      body: JSON.stringify({
-        app_id: 'f55b357d-df31-4ba6-8042-23ad48230434',
-        filters: [{ field: 'tag', key: 'orderId', relation: '=', value: orderId }],
-        headings: { en: msg.title },
-        contents: { en: msg.body },
-        url: window.location.href,
-      })
-    });
-  } catch (e) {
-    console.log('Push error:', e);
-  }
+const NOTIFICATION_MESSAGES = {
+  preparing: { title: '👨‍🍳 Chef is Cooking!', body: 'Your order is being prepared right now!' },
+  ready:     { title: '🔔 Food is Ready!',    body: 'Your food is ready — waiter is bringing it!' },
+  served:    { title: '🍽️ Enjoy your meal!',  body: 'Your food has been served. Bon appétit!' },
 };
 
 export default function OrderStatus() {
@@ -48,10 +25,9 @@ export default function OrderStatus() {
   const prevStatus = useRef(null);
 
   const requestNotifications = async () => {
-    if (window.OneSignal) {
+    if (window.OneSignalDeferred) {
       window.OneSignalDeferred.push(async function(OneSignal) {
         await OneSignal.Notifications.requestPermission();
-        // Tag this user with their order ID
         await OneSignal.User.addTag('orderId', orderId);
         setNotifGranted(true);
       });
@@ -59,7 +35,6 @@ export default function OrderStatus() {
   };
 
   useEffect(() => {
-    // Check permission on load
     if (window.OneSignalDeferred) {
       window.OneSignalDeferred.push(function(OneSignal) {
         const granted = OneSignal.Notifications.permission;
@@ -71,7 +46,10 @@ export default function OrderStatus() {
       if (d.exists()) {
         const data = d.data();
         if (prevStatus.current && prevStatus.current !== data.status) {
-          sendPushNotification(data.status, orderId);
+          const msg = NOTIFICATION_MESSAGES[data.status];
+          if (msg && Notification.permission === 'granted') {
+            new Notification(msg.title, { body: msg.body, icon: '/favicon.svg' });
+          }
         }
         prevStatus.current = data.status;
         setOrder(data);
@@ -96,8 +74,16 @@ export default function OrderStatus() {
   return (
     <div className="min-h-screen bg-[#0f0f0f] text-white font-sans">
 
+      {/* Header */}
       <div className="bg-[#1a1a1a] border-b border-[#2a2a2a] px-5 py-4">
         <div className="flex items-center gap-3">
+
+          {/* Back Button */}
+          <button onClick={() => window.history.back()}
+            className="w-9 h-9 bg-[#2a2a2a] hover:bg-[#333] rounded-xl flex items-center justify-center transition-colors shrink-0">
+            <span className="text-white text-lg">←</span>
+          </button>
+
           <div className="w-10 h-10 bg-orange-500 rounded-xl flex items-center justify-center text-xl shadow-lg shadow-orange-900/50">🍽️</div>
           <div>
             <h1 className="font-black text-white text-lg">Order Status</h1>
@@ -129,14 +115,14 @@ export default function OrderStatus() {
           </div>
         )}
 
-        {/* Status Card */}
+        {/* Big Status Card */}
         <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-2xl p-6 text-center">
           <div className="text-5xl mb-3">{info.emoji}</div>
           <h2 className={`text-2xl font-black ${info.color}`}>{info.label}</h2>
           <p className="text-gray-500 text-sm mt-2">{info.desc}</p>
         </div>
 
-        {/* Progress */}
+        {/* Progress Steps */}
         <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-2xl p-4">
           <h3 className="font-bold text-gray-500 text-xs mb-4 uppercase tracking-widest">Progress</h3>
           {STEPS.map((step, i) => (
@@ -184,7 +170,7 @@ export default function OrderStatus() {
           </div>
         </div>
 
-        {/* Add More */}
+        {/* Add More Items */}
         {order.status !== 'served' && (
           <a href={`/menu/${order.restaurantId}/${order.tableNumber}`}
             className="block w-full bg-[#1a1a1a] border border-[#2a2a2a] hover:border-orange-500/50 text-white py-4 rounded-2xl font-black text-base text-center transition-all active:scale-95">

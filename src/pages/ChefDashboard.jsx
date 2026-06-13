@@ -51,6 +51,13 @@ export default function ChefDashboard() {
       {/* Header */}
       <div className="bg-[#1a1a1a] border-b border-[#2a2a2a] px-6 py-4 flex items-center justify-between sticky top-0 z-10">
         <div className="flex items-center gap-3">
+
+          {/* Back Button */}
+          <button onClick={() => window.history.back()}
+            className="w-9 h-9 bg-[#2a2a2a] hover:bg-[#333] rounded-xl flex items-center justify-center transition-colors shrink-0">
+            <span className="text-white text-lg">←</span>
+          </button>
+
           <div className="w-10 h-10 bg-orange-500 rounded-xl flex items-center justify-center text-xl shadow-lg shadow-orange-900/50">👨‍🍳</div>
           <div>
             <h1 className="text-white font-black text-lg leading-none">Kitchen Display</h1>
