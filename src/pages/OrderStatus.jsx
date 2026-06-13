@@ -24,10 +24,10 @@ export default function OrderStatus() {
   }, [orderId]);
 
   if (!order) return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50">
+    <div className="min-h-screen flex items-center justify-center bg-[#0f0f0f]">
       <div className="text-center">
         <div className="text-4xl mb-3 animate-pulse">⏳</div>
-        <p className="text-slate-400">Loading your order...</p>
+        <p className="text-gray-500">Loading your order...</p>
       </div>
     </div>
   );
@@ -37,72 +37,78 @@ export default function OrderStatus() {
   const total = order.items.reduce((sum, i) => sum + i.price * i.quantity, 0);
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans">
+    <div className="min-h-screen bg-[#0f0f0f] text-white font-sans">
+
       {/* Header */}
-      <div className="bg-white border-b border-slate-100 px-5 py-4 shadow-sm">
+      <div className="bg-[#1a1a1a] border-b border-[#2a2a2a] px-5 py-4">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 bg-orange-500 rounded-xl flex items-center justify-center text-white">🍽️</div>
+          <div className="w-10 h-10 bg-orange-500 rounded-xl flex items-center justify-center text-xl shadow-lg shadow-orange-900/50">🍽️</div>
           <div>
-            <h1 className="font-bold text-slate-800">Order Status</h1>
-            <p className="text-xs text-slate-400">Table {order.tableNumber} · {order.customerName}</p>
+            <h1 className="font-black text-white text-lg">Order Status</h1>
+            <p className="text-xs text-gray-500">Table {order.tableNumber} · {order.customerName}</p>
           </div>
         </div>
       </div>
 
       <div className="max-w-md mx-auto p-5 space-y-4">
+
         {/* Big Status Card */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 text-center">
+        <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-2xl p-6 text-center">
           <div className="text-5xl mb-3">{info.emoji}</div>
-          <h2 className={`text-2xl font-bold ${info.color}`}>{info.label}</h2>
-          <p className="text-slate-500 text-sm mt-2">{info.desc}</p>
+          <h2 className={`text-2xl font-black ${info.color}`}>{info.label}</h2>
+          <p className="text-gray-500 text-sm mt-2">{info.desc}</p>
         </div>
 
         {/* Progress Steps */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-4">
-          <h3 className="font-bold text-slate-600 text-sm mb-3 uppercase tracking-wide">Progress</h3>
+        <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-2xl p-4">
+          <h3 className="font-bold text-gray-500 text-xs mb-4 uppercase tracking-widest">Progress</h3>
           {STEPS.map((step, i) => (
             <div key={step} className="flex items-center gap-3 py-2">
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold shrink-0 transition-all
+              <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-sm font-black shrink-0 transition-all
                 ${i < currentStep ? 'bg-green-500 text-white' :
-                  i === currentStep ? 'bg-orange-500 text-white shadow-md shadow-orange-200' :
-                  'bg-slate-100 text-slate-400'}`}>
+                  i === currentStep ? 'bg-orange-500 text-white shadow-lg shadow-orange-900/50' :
+                  'bg-[#0f0f0f] text-gray-600 border border-[#2a2a2a]'}`}>
                 {i < currentStep ? '✓' : STEP_INFO[step].emoji}
               </div>
-              <div className="flex-1">
-                <p className={`text-sm font-semibold ${
-                  i === currentStep ? 'text-orange-500' :
-                  i < currentStep ? 'text-green-500' : 'text-slate-400'}`}>
-                  {STEP_INFO[step].label}
-                </p>
-              </div>
-              {i < STEPS.length - 1 && (
-                <div className={`w-px h-4 ml-4 ${i < currentStep ? 'bg-green-300' : 'bg-slate-200'}`}></div>
-              )}
+              <p className={`text-sm font-bold ${
+                i === currentStep ? 'text-orange-400' :
+                i < currentStep ? 'text-green-400' : 'text-gray-600'}`}>
+                {STEP_INFO[step].label}
+              </p>
             </div>
           ))}
         </div>
 
         {/* Order Summary */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-4">
-          <h3 className="font-bold text-slate-600 text-sm mb-3 uppercase tracking-wide">Your Order</h3>
+        <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-2xl p-4">
+          <h3 className="font-bold text-gray-500 text-xs mb-4 uppercase tracking-widest">Your Order</h3>
           <div className="space-y-2">
             {order.items.map((item, i) => (
-              <div key={i} className="flex justify-between items-start py-2 border-b border-slate-50 last:border-0">
+              <div key={i} className="flex justify-between items-start py-2 border-b border-[#2a2a2a] last:border-0">
                 <div>
-                  <p className="text-sm font-semibold text-slate-700">{item.quantity}× {item.name}</p>
+                  <p className="text-sm font-bold text-white">{item.quantity}× {item.name}</p>
                   {item.preferences && (
                     <p className="text-xs text-orange-400 mt-0.5">Note: {item.preferences}</p>
                   )}
                 </div>
-                <span className="text-sm font-bold text-slate-600">₹{item.price * item.quantity}</span>
+                <span className="text-sm font-bold text-gray-400">₹{item.price * item.quantity}</span>
               </div>
             ))}
           </div>
-          <div className="flex justify-between items-center pt-3 border-t border-slate-100 mt-2">
-            <span className="font-bold text-slate-700">Total</span>
-            <span className="font-bold text-orange-500 text-lg">₹{total}</span>
+          <div className="flex justify-between items-center pt-3 border-t border-[#2a2a2a] mt-2">
+            <span className="font-black text-white">Total</span>
+            <span className="font-black text-orange-400 text-xl">₹{total}</span>
           </div>
         </div>
+
+        {/* Add More Items Button */}
+        {order.status !== 'served' && (
+          <a href={`/menu/${order.restaurantId}/${order.tableNumber}`}
+            className="block w-full bg-[#1a1a1a] border border-[#2a2a2a] hover:border-orange-500/50 text-white py-4 rounded-2xl font-black text-base text-center transition-all active:scale-95">
+            + Add More Items to Order
+          </a>
+        )}
+
       </div>
     </div>
   );
