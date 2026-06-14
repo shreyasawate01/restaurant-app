@@ -48,12 +48,30 @@ export default function CustomerMenu() {
 
   const fetchMenu = async () => {
     setPageLoading(true);
+
+    // Check cache first — load instantly if available
+    const cacheKey = `menu_${restaurantId}`;
+    const cached = sessionStorage.getItem(cacheKey);
+    if (cached) {
+      const items = JSON.parse(cached);
+      setMenu(items);
+      const firstCat = [...new Set(items.map(i => i.category))][0];
+      setActiveCategory(firstCat);
+      setPageLoading(false);
+      return;
+    }
+
+    // No cache — fetch from Firebase
     const snapshot = await getDocs(collection(db, `restaurants/${restaurantId}/menu`));
     const items = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
     setMenu(items);
+
+    // Save to cache for next time
+    sessionStorage.setItem(cacheKey, JSON.stringify(items));
+
     const firstCat = [...new Set(items.map(i => i.category))][0];
     setActiveCategory(firstCat);
-    setTimeout(() => setPageLoading(false), 1500);
+    setPageLoading(false);
   };
 
   const showToastMessage = (msg) => {
