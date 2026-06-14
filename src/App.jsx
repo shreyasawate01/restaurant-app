@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import LandingPage from './pages/LandingPage';
 import AdminDashboard from './pages/AdminDashboard';
 import ChefDashboard from './pages/ChefDashboard';
 import CustomerMenu from './pages/CustomerMenu';
@@ -8,7 +9,7 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<AdminDashboard />} />
+        <Route path="/" element={<LandingPage />} />
         <Route path="/admin" element={<AdminDashboard />} />
         <Route path="/chef/:restaurantId" element={<ChefDashboard />} />
         <Route path="/menu/:restaurantId/:tableNumber" element={<CustomerMenu />} />
