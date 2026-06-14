@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { db } from '../firebase';
-import { collection, addDoc, getDocs, deleteDoc, doc } from 'firebase/firestore';
+import { collection, addDoc, getDocs, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import QRCodeGenerator from '../components/QRCodeGenerator';
 import LoadingScreen from '../components/LoadingScreen';
 
@@ -61,6 +61,7 @@ export default function AdminDashboard() {
         price: Number(price),
         category,
         imageUrl: imageUrl || null,
+        badge: null,
         available: true
       });
       setName(''); setPrice(''); setCategory('');
@@ -78,6 +79,27 @@ export default function AdminDashboard() {
     fetchMenu();
   };
 
+  const updateBadge = async (id, badge) => {
+    await updateDoc(doc(db, `restaurants/${RESTAURANT_ID}/menu`, id), {
+      badge: badge || null
+    });
+    fetchMenu();
+  };
+
+  const BADGE_STYLES = {
+    popular:     'bg-yellow-900/40 text-yellow-400 border border-yellow-800',
+    bestseller:  'bg-red-900/40 text-red-400 border border-red-800',
+    new:         'bg-green-900/40 text-green-400 border border-green-800',
+    recommended: 'bg-blue-900/40 text-blue-400 border border-blue-800',
+  };
+
+  const BADGE_LABELS = {
+    popular:     '⭐ Popular',
+    bestseller:  '🔥 Best Seller',
+    new:         '✨ New',
+    recommended: "👨‍🍳 Chef's Pick",
+  };
+
   const categories = [...new Set(menuItems.map(i => i.category).filter(Boolean))];
 
   if (pageLoading) return <LoadingScreen message="Loading dashboard..." />;
@@ -87,13 +109,10 @@ export default function AdminDashboard() {
       {/* Header */}
       <div className="bg-[#1a1a1a] border-b border-[#2a2a2a] px-6 py-4 flex items-center justify-between sticky top-0 z-10">
         <div className="flex items-center gap-3">
-
-          {/* Back Button */}
           <button onClick={() => window.history.back()}
             className="w-9 h-9 bg-[#2a2a2a] hover:bg-[#333] rounded-xl flex items-center justify-center transition-colors shrink-0">
             <span className="text-white text-lg">←</span>
           </button>
-
           <div className="w-10 h-10 bg-orange-500 rounded-xl flex items-center justify-center text-xl shadow-lg shadow-orange-900/50">🍽️</div>
           <div>
             <h1 className="text-lg font-black text-white leading-none">TableServe</h1>
@@ -222,22 +241,50 @@ export default function AdminDashboard() {
                 {menuItems.map(item => (
                   <div key={item.id}
                     className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-2xl overflow-hidden flex hover:border-orange-500/30 transition-colors">
+
+                    {/* Image */}
                     {item.imageUrl ? (
-                      <img src={item.imageUrl} alt={item.name}
-                        className="w-20 h-20 object-cover shrink-0" />
+                      <img src={item.imageUrl} alt={item.name} className="w-20 h-20 object-cover shrink-0" />
                     ) : (
                       <div className="w-20 h-20 bg-[#0f0f0f] shrink-0 flex items-center justify-center text-2xl">🍽️</div>
                     )}
-                    <div className="flex-1 px-4 py-3 flex justify-between items-center min-w-0">
-                      <div className="min-w-0">
+
+                    <div className="flex-1 px-4 py-3 flex justify-between items-start min-w-0 gap-2">
+                      {/* Item Info */}
+                      <div className="min-w-0 flex-1">
                         <p className="font-bold text-white text-sm truncate">{item.name}</p>
                         <p className="text-orange-400 font-black">₹{item.price}</p>
-                        {item.category && <p className="text-xs text-gray-600 mt-0.5">{item.category}</p>}
+                        {item.category && (
+                          <p className="text-xs text-gray-600 mt-0.5">{item.category}</p>
+                        )}
+                        {/* Badge Display */}
+                        {item.badge && (
+                          <span className={`text-xs font-bold px-2 py-0.5 rounded-full mt-1 inline-block ${BADGE_STYLES[item.badge]}`}>
+                            {BADGE_LABELS[item.badge]}
+                          </span>
+                        )}
                       </div>
-                      <button onClick={() => deleteItem(item.id)}
-                        className="shrink-0 ml-3 text-xs text-red-500 hover:text-red-400 hover:bg-red-900/20 px-3 py-1.5 rounded-lg transition-colors font-bold">
-                        Delete
-                      </button>
+
+                      {/* Controls */}
+                      <div className="flex flex-col items-end gap-2 shrink-0">
+                        {/* Badge Selector */}
+                        <select
+                          value={item.badge || ''}
+                          onChange={e => updateBadge(item.id, e.target.value)}
+                          className="text-xs bg-[#0f0f0f] border border-[#2a2a2a] text-gray-400 rounded-lg px-2 py-1.5 focus:outline-none focus:border-orange-500 cursor-pointer">
+                          <option value="">No Badge</option>
+                          <option value="popular">⭐ Popular</option>
+                          <option value="bestseller">🔥 Best Seller</option>
+                          <option value="new">✨ New</option>
+                          <option value="recommended">👨‍🍳 Chef's Pick</option>
+                        </select>
+
+                        {/* Delete Button */}
+                        <button onClick={() => deleteItem(item.id)}
+                          className="text-xs text-red-500 hover:text-red-400 hover:bg-red-900/20 px-3 py-1.5 rounded-lg transition-colors font-bold">
+                          Delete
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))}
