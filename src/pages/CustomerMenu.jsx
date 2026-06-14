@@ -21,7 +21,10 @@ export default function CustomerMenu() {
   const [showToast, setShowToast] = useState(false);
   const [cartBounce, setCartBounce] = useState(false);
   const [visibleItems, setVisibleItems] = useState({});
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchFocused, setSearchFocused] = useState(false);
   const itemRefs = useRef({});
+  const searchRef = useRef(null);
 
   useEffect(() => {
     signInAnonymously(auth);
@@ -43,7 +46,7 @@ export default function CustomerMenu() {
       if (ref) observer.observe(ref);
     });
     return () => observer.disconnect();
-  }, [menu, activeCategory]);
+  }, [menu, activeCategory, searchQuery]);
 
   const fetchMenu = async () => {
     setPageLoading(true);
@@ -73,6 +76,11 @@ export default function CustomerMenu() {
   };
 
   const categories = [...new Set(menu.map(i => i.category))];
+
+  // Filter logic — search overrides category
+  const filteredItems = searchQuery.trim()
+    ? menu.filter(i => i.name.toLowerCase().includes(searchQuery.toLowerCase()))
+    : menu.filter(i => i.category === activeCategory);
 
   const getQty = (itemId) => {
     const found = cart.find(c => c.id === itemId);
@@ -142,10 +150,6 @@ export default function CustomerMenu() {
           from { opacity: 0; transform: translateY(24px); }
           to   { opacity: 1; transform: translateY(0); }
         }
-        @keyframes fadeIn {
-          from { opacity: 0; }
-          to   { opacity: 1; }
-        }
         @keyframes scaleIn {
           from { opacity: 0; transform: scale(0.92); }
           to   { opacity: 1; transform: scale(1); }
@@ -178,6 +182,10 @@ export default function CustomerMenu() {
           0%, 100% { box-shadow: 0 0 20px rgba(249,115,22,0.15); }
           50%       { box-shadow: 0 0 35px rgba(249,115,22,0.35); }
         }
+        @keyframes searchExpand {
+          from { opacity: 0; transform: scaleX(0.95); }
+          to   { opacity: 1; transform: scaleX(1); }
+        }
         .fade-slide-up  { animation: fadeSlideUp 0.5s cubic-bezier(.22,.68,0,1.2) forwards; }
         .scale-in       { animation: scaleIn 0.4s cubic-bezier(.22,.68,0,1.2) forwards; }
         .toast-anim     { animation: toastIn 2s ease forwards; }
@@ -192,10 +200,11 @@ export default function CustomerMenu() {
           background-size: 400px 100%;
           animation: shimmerMove 2.5s infinite;
         }
+        .search-expand { animation: searchExpand 0.2s ease forwards; }
         ::-webkit-scrollbar { display: none; }
       `}</style>
 
-      {/* Toast Notification */}
+      {/* Toast */}
       {showToast && (
         <div className="fixed top-6 left-1/2 z-[100] toast-anim pointer-events-none"
           style={{ transform: 'translateX(-50%)' }}>
@@ -207,7 +216,7 @@ export default function CustomerMenu() {
       )}
 
       {/* Hero Header */}
-      <div className="relative overflow-hidden px-5 pt-12 pb-8"
+      <div className="relative overflow-hidden px-5 pt-12 pb-6"
         style={{ background: 'linear-gradient(180deg, #1a1a1a 0%, transparent 100%)' }}>
 
         <div className="absolute inset-0 opacity-5"
@@ -215,15 +224,14 @@ export default function CustomerMenu() {
             backgroundImage: 'linear-gradient(rgba(249,115,22,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(249,115,22,0.5) 1px, transparent 1px)',
             backgroundSize: '40px 40px'
           }} />
-
         <div className="absolute top-0 right-0 w-64 h-64 rounded-full opacity-10 pointer-events-none"
           style={{ background: 'radial-gradient(circle, #f97316 0%, transparent 70%)', transform: 'translate(30%, -30%)' }} />
 
         <div className="relative z-10">
-          <div className="flex items-start justify-between mb-8">
+          <div className="flex items-start justify-between mb-6">
             <div className="flex items-start gap-3">
               <button onClick={() => window.history.back()}
-                className="mt-1 w-9 h-9 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 flex items-center justify-center transition-all hover:border-orange-500/40 backdrop-blur-sm">
+                className="mt-1 w-9 h-9 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 flex items-center justify-center transition-all hover:border-orange-500/40">
                 <span className="text-white/70 text-base">←</span>
               </button>
               <div className="fade-slide-up">
@@ -239,7 +247,6 @@ export default function CustomerMenu() {
                 <p className="text-white/30 text-sm mt-2 font-medium">Crafted fresh, served with care</p>
               </div>
             </div>
-
             {cart.length > 0 && (
               <button onClick={() => setShowCart(true)}
                 className={`relative w-14 h-14 rounded-2xl flex items-center justify-center transition-all ${cartBounce ? 'cart-pop' : ''} glow-pulse`}
@@ -252,63 +259,118 @@ export default function CustomerMenu() {
             )}
           </div>
 
-          <div className="relative fade-slide-up" style={{ animationDelay: '0.1s' }}>
-            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30 text-sm font-medium">👤</div>
+          {/* Name Input */}
+          <div className="relative fade-slide-up mb-3" style={{ animationDelay: '0.1s' }}>
+            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30 text-sm">👤</div>
             <input
               className="w-full rounded-2xl pl-10 pr-4 py-4 text-white text-sm font-medium placeholder-white/20 focus:outline-none transition-all"
               style={{
                 background: 'rgba(255,255,255,0.04)',
                 border: '1px solid rgba(255,255,255,0.08)',
                 backdropFilter: 'blur(10px)',
+                fontSize: '16px',
               }}
-              onFocus={e => {
-                e.target.style.border = '1px solid rgba(249,115,22,0.5)';
-                e.target.style.background = 'rgba(249,115,22,0.05)';
-              }}
-              onBlur={e => {
-                e.target.style.border = '1px solid rgba(255,255,255,0.08)';
-                e.target.style.background = 'rgba(255,255,255,0.04)';
-              }}
+              onFocus={e => { e.target.style.border = '1px solid rgba(249,115,22,0.5)'; e.target.style.background = 'rgba(249,115,22,0.05)'; }}
+              onBlur={e => { e.target.style.border = '1px solid rgba(255,255,255,0.08)'; e.target.style.background = 'rgba(255,255,255,0.04)'; }}
               placeholder="Your name to place order..."
               value={customerName}
               onChange={e => setCustomerName(e.target.value)} />
           </div>
-        </div>
-      </div>
 
-      {/* Category Pills */}
-      <div className="sticky top-0 z-30 px-5 py-3"
-        style={{ background: 'rgba(10,10,10,0.85)', backdropFilter: 'blur(20px)', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-        <div className="flex gap-2 overflow-x-auto pb-0.5">
-          {categories.map((cat, i) => (
-            <button key={cat} onClick={() => setActiveCategory(cat)}
+          {/* 🔍 Search Bar */}
+          <div className="relative fade-slide-up" style={{ animationDelay: '0.15s' }}>
+            <div className="absolute left-4 top-1/2 -translate-y-1/2 transition-all"
+              style={{ color: searchFocused ? '#f97316' : 'rgba(255,255,255,0.25)' }}>
+              🔍
+            </div>
+            <input
+              ref={searchRef}
+              className="w-full rounded-2xl pl-10 pr-10 py-3.5 text-white text-sm font-medium placeholder-white/20 focus:outline-none transition-all"
               style={{
-                animationDelay: `${i * 0.06}s`,
-                background: activeCategory === cat ? 'linear-gradient(135deg, #f97316, #ea580c)' : 'rgba(255,255,255,0.04)',
-                border: activeCategory === cat ? 'none' : '1px solid rgba(255,255,255,0.06)',
-                boxShadow: activeCategory === cat ? '0 4px 15px rgba(249,115,22,0.3)' : 'none',
+                background: searchQuery ? 'rgba(249,115,22,0.06)' : 'rgba(255,255,255,0.04)',
+                border: searchFocused
+                  ? '1px solid rgba(249,115,22,0.5)'
+                  : searchQuery
+                  ? '1px solid rgba(249,115,22,0.25)'
+                  : '1px solid rgba(255,255,255,0.08)',
+                backdropFilter: 'blur(10px)',
+                fontSize: '16px',
               }}
-              className={`shrink-0 px-5 py-2 rounded-xl text-sm font-bold transition-all fade-slide-up ${
-                activeCategory === cat ? 'text-white scale-105' : 'text-white/40 hover:text-white/70'
-              }`}>
-              {cat || 'All'}
-            </button>
-          ))}
+              onFocus={() => setSearchFocused(true)}
+              onBlur={() => setSearchFocused(false)}
+              placeholder="Search dishes..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)} />
+
+            {/* Clear button */}
+            {searchQuery && (
+              <button
+                onClick={() => { setSearchQuery(''); searchRef.current?.focus(); }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full flex items-center justify-center transition-all hover:scale-110 scale-in"
+                style={{ background: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)' }}>
+                ×
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Section label */}
-      <div className="px-5 pt-6 pb-3 fade-slide-up">
+      {/* Category Pills — hide when searching */}
+      {!searchQuery && (
+        <div className="sticky top-0 z-30 px-5 py-3"
+          style={{ background: 'rgba(10,10,10,0.85)', backdropFilter: 'blur(20px)', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+          <div className="flex gap-2 overflow-x-auto pb-0.5">
+            {categories.map((cat, i) => (
+              <button key={cat} onClick={() => setActiveCategory(cat)}
+                style={{
+                  animationDelay: `${i * 0.06}s`,
+                  background: activeCategory === cat ? 'linear-gradient(135deg, #f97316, #ea580c)' : 'rgba(255,255,255,0.04)',
+                  border: activeCategory === cat ? 'none' : '1px solid rgba(255,255,255,0.06)',
+                  boxShadow: activeCategory === cat ? '0 4px 15px rgba(249,115,22,0.3)' : 'none',
+                }}
+                className={`shrink-0 px-5 py-2 rounded-xl text-sm font-bold transition-all fade-slide-up ${
+                  activeCategory === cat ? 'text-white scale-105' : 'text-white/40 hover:text-white/70'
+                }`}>
+                {cat || 'All'}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Search Results Label */}
+      <div className="px-5 pt-5 pb-3">
         <div className="flex items-center gap-3">
           <div className="h-px flex-1" style={{ background: 'rgba(255,255,255,0.06)' }}></div>
-          <span className="text-white/20 text-xs font-bold uppercase tracking-widest">{activeCategory}</span>
+          {searchQuery ? (
+            <span className="text-white/40 text-xs font-bold uppercase tracking-widest">
+              {filteredItems.length} result{filteredItems.length !== 1 ? 's' : ''} for "{searchQuery}"
+            </span>
+          ) : (
+            <span className="text-white/20 text-xs font-bold uppercase tracking-widest">{activeCategory}</span>
+          )}
           <div className="h-px flex-1" style={{ background: 'rgba(255,255,255,0.06)' }}></div>
         </div>
       </div>
+
+      {/* No Results */}
+      {filteredItems.length === 0 && searchQuery && (
+        <div className="text-center py-16 px-5 fade-slide-up">
+          <div className="text-5xl mb-4">🔍</div>
+          <p className="font-black text-white text-lg mb-2">No results found</p>
+          <p className="text-white/30 text-sm">Try searching for something else</p>
+          <button
+            onClick={() => setSearchQuery('')}
+            className="mt-4 px-5 py-2.5 rounded-xl text-sm font-bold transition-all active:scale-95"
+            style={{ background: 'rgba(249,115,22,0.15)', border: '1px solid rgba(249,115,22,0.3)', color: '#f97316' }}>
+            Clear Search
+          </button>
+        </div>
+      )}
 
       {/* Menu Items */}
       <div className="px-5 space-y-3">
-        {menu.filter(i => i.category === activeCategory).map((item, index) => {
+        {filteredItems.map((item, index) => {
           const qty = getQty(item.id);
           const isAdded = addedItems[item.id];
           const isVisible = visibleItems[item.id];
@@ -319,45 +381,44 @@ export default function CustomerMenu() {
               key={item.id}
               ref={el => itemRefs.current[item.id] = el}
               data-id={item.id}
-              className={`rounded-2xl overflow-hidden transition-all duration-300 cursor-default
+              className={`rounded-2xl overflow-hidden transition-all duration-300
                 ${isVisible ? 'item-visible' : 'item-hidden'}`}
               style={{
                 animationDelay: `${index * 0.07}s`,
-                background: badge ? `rgba(255,255,255,0.03)` : 'rgba(255,255,255,0.03)',
+                background: 'rgba(255,255,255,0.03)',
                 border: badge ? `1px solid ${badge.border}` : '1px solid rgba(255,255,255,0.06)',
               }}
               onMouseEnter={e => {
-                e.currentTarget.style.border = badge
-                  ? `1px solid ${badge.border}`
-                  : '1px solid rgba(249,115,22,0.2)';
-                e.currentTarget.style.background = 'rgba(249,115,22,0.04)';
                 e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.background = 'rgba(249,115,22,0.04)';
               }}
               onMouseLeave={e => {
-                e.currentTarget.style.border = badge
-                  ? `1px solid ${badge.border}`
-                  : '1px solid rgba(255,255,255,0.06)';
-                e.currentTarget.style.background = 'rgba(255,255,255,0.03)';
                 e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.background = 'rgba(255,255,255,0.03)';
               }}>
 
-              {/* Badge Strip at top */}
+              {/* Badge Strip */}
               {badge && (
                 <div className="px-4 pt-3 pb-0">
-                  <span
-                    className="inline-flex items-center gap-1 text-xs font-black px-3 py-1 rounded-full badge-pulse"
-                    style={{
-                      background: badge.bg,
-                      border: `1px solid ${badge.border}`,
-                      color: badge.color,
-                    }}>
+                  <span className="inline-flex items-center gap-1 text-xs font-black px-3 py-1 rounded-full badge-pulse"
+                    style={{ background: badge.bg, border: `1px solid ${badge.border}`, color: badge.color }}>
                     {badge.label}
                   </span>
                 </div>
               )}
 
+              {/* Search highlight for category */}
+              {searchQuery && item.category && (
+                <div className="px-4 pt-2 pb-0">
+                  <span className="text-xs font-semibold px-2 py-0.5 rounded-full"
+                    style={{ background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.3)' }}>
+                    {item.category}
+                  </span>
+                </div>
+              )}
+
               <div className="flex items-center gap-4 p-4">
-                {/* Food Image */}
+                {/* Image */}
                 <div className="w-20 h-20 rounded-xl overflow-hidden shrink-0 relative"
                   style={{ background: 'rgba(255,255,255,0.04)' }}>
                   {item.imageUrl ? (
@@ -371,29 +432,37 @@ export default function CustomerMenu() {
 
                 {/* Info */}
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-bold text-white text-base leading-snug mb-1">{item.name}</h3>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-black text-lg"
-                      style={{ background: 'linear-gradient(135deg, #f97316, #fb923c)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-                      ₹{item.price}
-                    </span>
-                    {item.category && (
-                      <span className="text-xs text-white/25 font-medium">{item.category}</span>
-                    )}
-                  </div>
+                  {/* Highlight matching text */}
+                  <h3 className="font-bold text-white text-base leading-snug mb-1">
+                    {searchQuery ? (
+                      (() => {
+                        const idx = item.name.toLowerCase().indexOf(searchQuery.toLowerCase());
+                        if (idx === -1) return item.name;
+                        return (
+                          <>
+                            {item.name.slice(0, idx)}
+                            <span style={{ color: '#f97316', background: 'rgba(249,115,22,0.15)', borderRadius: '4px', padding: '0 2px' }}>
+                              {item.name.slice(idx, idx + searchQuery.length)}
+                            </span>
+                            {item.name.slice(idx + searchQuery.length)}
+                          </>
+                        );
+                      })()
+                    ) : item.name}
+                  </h3>
+                  <span className="font-black text-lg"
+                    style={{ background: 'linear-gradient(135deg, #f97316, #fb923c)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                    ₹{item.price}
+                  </span>
                 </div>
 
-                {/* Add / Qty Control */}
+                {/* Qty Control */}
                 {qty === 0 ? (
                   <button onClick={() => addToCart(item)}
                     className="shrink-0 w-10 h-10 rounded-xl flex items-center justify-center font-black text-xl transition-all active:scale-90 hover:scale-110"
                     style={{
-                      background: isAdded
-                        ? 'linear-gradient(135deg, #22c55e, #16a34a)'
-                        : 'linear-gradient(135deg, #f97316, #ea580c)',
-                      boxShadow: isAdded
-                        ? '0 4px 15px rgba(34,197,94,0.3)'
-                        : '0 4px 15px rgba(249,115,22,0.3)',
+                      background: isAdded ? 'linear-gradient(135deg, #22c55e, #16a34a)' : 'linear-gradient(135deg, #f97316, #ea580c)',
+                      boxShadow: isAdded ? '0 4px 15px rgba(34,197,94,0.3)' : '0 4px 15px rgba(249,115,22,0.3)',
                     }}>
                     {isAdded
                       ? <span className="check-pop text-white text-base">✓</span>
@@ -404,14 +473,10 @@ export default function CustomerMenu() {
                   <div className="shrink-0 flex items-center gap-1 rounded-xl overflow-hidden scale-in"
                     style={{ background: 'linear-gradient(135deg, #f97316, #ea580c)' }}>
                     <button onClick={() => removeFromCart(item.id)}
-                      className="w-9 h-9 flex items-center justify-center font-black text-white text-lg hover:bg-black/10 transition-colors active:scale-90">
-                      −
-                    </button>
+                      className="w-9 h-9 flex items-center justify-center font-black text-white text-lg hover:bg-black/10 transition-colors active:scale-90">−</button>
                     <span className="text-white font-black text-sm w-5 text-center">{qty}</span>
                     <button onClick={() => addToCart(item)}
-                      className="w-9 h-9 flex items-center justify-center font-black text-white text-lg hover:bg-black/10 transition-colors active:scale-90">
-                      +
-                    </button>
+                      className="w-9 h-9 flex items-center justify-center font-black text-white text-lg hover:bg-black/10 transition-colors active:scale-90">+</button>
                   </div>
                 )}
               </div>
@@ -427,10 +492,7 @@ export default function CustomerMenu() {
                 {showPrefFor === item.id && (
                   <input
                     className="w-full mt-2 px-3 py-2.5 rounded-xl text-sm text-white placeholder-white/20 focus:outline-none transition-all scale-in"
-                    style={{
-                      background: 'rgba(255,255,255,0.04)',
-                      border: '1px solid rgba(249,115,22,0.3)',
-                    }}
+                    style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(249,115,22,0.3)', fontSize: '16px' }}
                     placeholder="e.g. No onion, less spicy..."
                     value={preferences[item.id] || ''}
                     onChange={e => {
@@ -457,10 +519,7 @@ export default function CustomerMenu() {
               border: '1px solid rgba(255,255,255,0.08)',
               borderBottom: 'none',
             }}>
-
-            <div className="w-10 h-1 rounded-full mx-auto mb-6"
-              style={{ background: 'rgba(255,255,255,0.15)' }} />
-
+            <div className="w-10 h-1 rounded-full mx-auto mb-6" style={{ background: 'rgba(255,255,255,0.15)' }} />
             <h2 className="font-black text-2xl text-white mb-1">Your Order</h2>
             <p className="text-white/30 text-sm mb-6">{totalItems} item{totalItems > 1 ? 's' : ''} · Table {tableNumber}</p>
 
@@ -475,8 +534,7 @@ export default function CustomerMenu() {
                   }}>
                   <div className="flex items-center gap-3">
                     {item.imageUrl && (
-                      <img src={item.imageUrl} alt={item.name}
-                        className="w-10 h-10 rounded-xl object-cover shrink-0" />
+                      <img src={item.imageUrl} alt={item.name} className="w-10 h-10 rounded-xl object-cover shrink-0" />
                     )}
                     <div>
                       <p className="font-bold text-white text-sm">{item.quantity}× {item.name}</p>
@@ -488,9 +546,7 @@ export default function CustomerMenu() {
                   <div className="flex items-center gap-3">
                     <span className="text-white font-bold text-sm">₹{item.price * item.quantity}</span>
                     <button onClick={() => removeFromCart(item.id)}
-                      className="w-6 h-6 rounded-lg flex items-center justify-center text-white/30 hover:text-red-400 hover:bg-red-900/20 transition-all text-lg leading-none">
-                      ×
-                    </button>
+                      className="w-6 h-6 rounded-lg flex items-center justify-center text-white/30 hover:text-red-400 hover:bg-red-900/20 transition-all text-lg leading-none">×</button>
                   </div>
                 </div>
               ))}
