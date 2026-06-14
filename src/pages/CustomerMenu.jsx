@@ -28,7 +28,6 @@ export default function CustomerMenu() {
     fetchMenu();
   }, []);
 
-  // Intersection Observer for scroll animations
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
@@ -48,8 +47,6 @@ export default function CustomerMenu() {
 
   const fetchMenu = async () => {
     setPageLoading(true);
-
-    // Check cache first — load instantly if available
     const cacheKey = `menu_${restaurantId}`;
     const cached = sessionStorage.getItem(cacheKey);
     if (cached) {
@@ -60,15 +57,10 @@ export default function CustomerMenu() {
       setPageLoading(false);
       return;
     }
-
-    // No cache — fetch from Firebase
     const snapshot = await getDocs(collection(db, `restaurants/${restaurantId}/menu`));
     const items = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
     setMenu(items);
-
-    // Save to cache for next time
     sessionStorage.setItem(cacheKey, JSON.stringify(items));
-
     const firstCat = [...new Set(items.map(i => i.category))][0];
     setActiveCategory(firstCat);
     setPageLoading(false);
@@ -132,6 +124,13 @@ export default function CustomerMenu() {
     setLoading(false);
   };
 
+  const BADGE_STYLES = {
+    popular:     { bg: 'rgba(234,179,8,0.15)',  border: 'rgba(234,179,8,0.3)',  color: '#fbbf24', label: '⭐ Popular' },
+    bestseller:  { bg: 'rgba(239,68,68,0.15)',  border: 'rgba(239,68,68,0.3)',  color: '#f87171', label: '🔥 Best Seller' },
+    new:         { bg: 'rgba(34,197,94,0.15)',  border: 'rgba(34,197,94,0.3)',  color: '#4ade80', label: '✨ New' },
+    recommended: { bg: 'rgba(59,130,246,0.15)', border: 'rgba(59,130,246,0.3)', color: '#60a5fa', label: "👨‍🍳 Chef's Pick" },
+  };
+
   if (pageLoading) return <LoadingScreen message="Loading menu..." />;
 
   return (
@@ -167,6 +166,10 @@ export default function CustomerMenu() {
           60%  { transform: scale(1.2) rotate(3deg); }
           100% { transform: scale(1) rotate(0deg); opacity: 1; }
         }
+        @keyframes badgePulse {
+          0%, 100% { opacity: 1; }
+          50%      { opacity: 0.7; }
+        }
         @keyframes shimmerMove {
           0%   { background-position: -400px 0; }
           100% { background-position: 400px 0; }
@@ -181,6 +184,7 @@ export default function CustomerMenu() {
         .cart-pop       { animation: cartPop 0.5s cubic-bezier(.22,.68,0,1.2); }
         .check-pop      { animation: checkPop 0.4s cubic-bezier(.22,.68,0,1.2) forwards; }
         .glow-pulse     { animation: glowPulse 2.5s ease-in-out infinite; }
+        .badge-pulse    { animation: badgePulse 2s ease-in-out infinite; }
         .item-hidden    { opacity: 0; transform: translateY(20px); }
         .item-visible   { animation: fadeSlideUp 0.5s cubic-bezier(.22,.68,0,1.2) forwards; }
         .shimmer {
@@ -206,14 +210,12 @@ export default function CustomerMenu() {
       <div className="relative overflow-hidden px-5 pt-12 pb-8"
         style={{ background: 'linear-gradient(180deg, #1a1a1a 0%, transparent 100%)' }}>
 
-        {/* Subtle grid pattern */}
         <div className="absolute inset-0 opacity-5"
           style={{
             backgroundImage: 'linear-gradient(rgba(249,115,22,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(249,115,22,0.5) 1px, transparent 1px)',
             backgroundSize: '40px 40px'
           }} />
 
-        {/* Glow orb */}
         <div className="absolute top-0 right-0 w-64 h-64 rounded-full opacity-10 pointer-events-none"
           style={{ background: 'radial-gradient(circle, #f97316 0%, transparent 70%)', transform: 'translate(30%, -30%)' }} />
 
@@ -238,7 +240,6 @@ export default function CustomerMenu() {
               </div>
             </div>
 
-            {/* Cart Button */}
             {cart.length > 0 && (
               <button onClick={() => setShowCart(true)}
                 className={`relative w-14 h-14 rounded-2xl flex items-center justify-center transition-all ${cartBounce ? 'cart-pop' : ''} glow-pulse`}
@@ -251,7 +252,6 @@ export default function CustomerMenu() {
             )}
           </div>
 
-          {/* Name Input */}
           <div className="relative fade-slide-up" style={{ animationDelay: '0.1s' }}>
             <div className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30 text-sm font-medium">👤</div>
             <input
@@ -282,21 +282,15 @@ export default function CustomerMenu() {
         <div className="flex gap-2 overflow-x-auto pb-0.5">
           {categories.map((cat, i) => (
             <button key={cat} onClick={() => setActiveCategory(cat)}
-              style={{ animationDelay: `${i * 0.06}s` }}
-              className={`shrink-0 px-5 py-2 rounded-xl text-sm font-bold transition-all fade-slide-up ${
-                activeCategory === cat
-                  ? 'text-white scale-105'
-                  : 'text-white/40 hover:text-white/70'
-              }`}
               style={{
-                background: activeCategory === cat
-                  ? 'linear-gradient(135deg, #f97316, #ea580c)'
-                  : 'rgba(255,255,255,0.04)',
-                border: activeCategory === cat
-                  ? 'none'
-                  : '1px solid rgba(255,255,255,0.06)',
+                animationDelay: `${i * 0.06}s`,
+                background: activeCategory === cat ? 'linear-gradient(135deg, #f97316, #ea580c)' : 'rgba(255,255,255,0.04)',
+                border: activeCategory === cat ? 'none' : '1px solid rgba(255,255,255,0.06)',
                 boxShadow: activeCategory === cat ? '0 4px 15px rgba(249,115,22,0.3)' : 'none',
-              }}>
+              }}
+              className={`shrink-0 px-5 py-2 rounded-xl text-sm font-bold transition-all fade-slide-up ${
+                activeCategory === cat ? 'text-white scale-105' : 'text-white/40 hover:text-white/70'
+              }`}>
               {cat || 'All'}
             </button>
           ))}
@@ -318,6 +312,8 @@ export default function CustomerMenu() {
           const qty = getQty(item.id);
           const isAdded = addedItems[item.id];
           const isVisible = visibleItems[item.id];
+          const badge = item.badge ? BADGE_STYLES[item.badge] : null;
+
           return (
             <div
               key={item.id}
@@ -327,19 +323,38 @@ export default function CustomerMenu() {
                 ${isVisible ? 'item-visible' : 'item-hidden'}`}
               style={{
                 animationDelay: `${index * 0.07}s`,
-                background: 'rgba(255,255,255,0.03)',
-                border: '1px solid rgba(255,255,255,0.06)',
+                background: badge ? `rgba(255,255,255,0.03)` : 'rgba(255,255,255,0.03)',
+                border: badge ? `1px solid ${badge.border}` : '1px solid rgba(255,255,255,0.06)',
               }}
               onMouseEnter={e => {
-                e.currentTarget.style.border = '1px solid rgba(249,115,22,0.2)';
+                e.currentTarget.style.border = badge
+                  ? `1px solid ${badge.border}`
+                  : '1px solid rgba(249,115,22,0.2)';
                 e.currentTarget.style.background = 'rgba(249,115,22,0.04)';
                 e.currentTarget.style.transform = 'translateY(-2px)';
               }}
               onMouseLeave={e => {
-                e.currentTarget.style.border = '1px solid rgba(255,255,255,0.06)';
+                e.currentTarget.style.border = badge
+                  ? `1px solid ${badge.border}`
+                  : '1px solid rgba(255,255,255,0.06)';
                 e.currentTarget.style.background = 'rgba(255,255,255,0.03)';
                 e.currentTarget.style.transform = 'translateY(0)';
               }}>
+
+              {/* Badge Strip at top */}
+              {badge && (
+                <div className="px-4 pt-3 pb-0">
+                  <span
+                    className="inline-flex items-center gap-1 text-xs font-black px-3 py-1 rounded-full badge-pulse"
+                    style={{
+                      background: badge.bg,
+                      border: `1px solid ${badge.border}`,
+                      color: badge.color,
+                    }}>
+                    {badge.label}
+                  </span>
+                </div>
+              )}
 
               <div className="flex items-center gap-4 p-4">
                 {/* Food Image */}
@@ -351,14 +366,13 @@ export default function CustomerMenu() {
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-3xl">🍽️</div>
                   )}
-                  {/* Shimmer overlay */}
                   <div className="absolute inset-0 shimmer opacity-0 hover:opacity-100 transition-opacity"></div>
                 </div>
 
                 {/* Info */}
                 <div className="flex-1 min-w-0">
                   <h3 className="font-bold text-white text-base leading-snug mb-1">{item.name}</h3>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-black text-lg"
                       style={{ background: 'linear-gradient(135deg, #f97316, #fb923c)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
                       ₹{item.price}
@@ -444,7 +458,6 @@ export default function CustomerMenu() {
               borderBottom: 'none',
             }}>
 
-            {/* Handle */}
             <div className="w-10 h-1 rounded-full mx-auto mb-6"
               style={{ background: 'rgba(255,255,255,0.15)' }} />
 
@@ -483,7 +496,6 @@ export default function CustomerMenu() {
               ))}
             </div>
 
-            {/* Total */}
             <div className="rounded-2xl p-4 mb-4"
               style={{ background: 'rgba(249,115,22,0.06)', border: '1px solid rgba(249,115,22,0.12)' }}>
               <div className="flex justify-between items-center">
@@ -495,7 +507,6 @@ export default function CustomerMenu() {
               </div>
             </div>
 
-            {/* Place Order Button */}
             <button onClick={placeOrder} disabled={loading}
               className="w-full py-4 rounded-2xl font-black text-lg text-white transition-all active:scale-95 disabled:opacity-50"
               style={{
